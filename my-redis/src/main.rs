@@ -1,28 +1,28 @@
-use mini_redis::{client, Result};
+use tokio::net::{TcpListener, TcpStream};
+use mini_redis::{Connection, Frame};
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    // Open a connection to the mini-redis address.
+async fn main() {
+    // Bind the listener to the address
+    let listener = TcpListener::bind("127.0.0.1:6379").await.unwrap();
 
-    // pub async fn connect<T: ToSocketAddrs>(addr: T) -> crate::Result<Client> {}
-    //
-    // The async fn definition looks like a regular synchronous function, but operates asynchronously.
-    // Rust transforms the async fn at compile time into a routine that operates asynchronously.
-    // Any calls to .await within the async fn yield control back to the thread.
-    // The thread may do other work while the operation processes in the background.
-    //
-    // Although other languages implement async/await too, Rust takes a unique approach.
-    // Primarily, Rust's async operations are lazy.
+    loop {
+        // The second item contains the IP and port of the new connection.
+        let (socket, _) = listener.accept().await.unwrap();
+        process(socket).await;
+    }
+}
 
-    let mut client = client::connect("127.0.0.1:6379").await?;
+async fn process(socket: TcpStream) {
+    // The `Connection` lets us read/write redis **frames** instead of
+    // byte streams. The `Connection` type is defined by mini-redis.
+    let mut connection = Connection::new(socket);
 
-    // Set the key "hello" with value "world"
-    client.set("hello", "world".into()).await?;
+    if let Some(frame) = connection.read_frame().await.unwrap() {
+        println!("GOT: {:?}", frame);
 
-    // Get key "hello"
-    let result = client.get("hello").await?;
-
-    println!("got value from the server; result={:?}", result);
-
-    Ok(())
+        // Respond with an error
+        let response = Frame::Error("unimplemented".to_string());
+        connection.write_frame(&response).await.unwrap();
+    }
 }
