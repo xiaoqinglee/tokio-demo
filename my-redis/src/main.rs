@@ -191,3 +191,32 @@ async fn process(socket: TcpStream) {
 //     });
 // }
 
+
+// https://doc.rust-lang.org/nomicon/send-and-sync.html
+//
+// Send and Sync are also automatically derived traits.
+// This means that, unlike every other trait, if a type is composed entirely of Send or Sync types, then it is Send or Sync.
+// Almost all primitives are Send and Sync, and as a consequence pretty much all types you'll ever interact with are Send and Sync.
+//
+// Major exceptions include:
+//
+//     raw pointers are neither Send nor Sync (because they have no safety guards).
+//     UnsafeCell isn't Sync (and therefore Cell and RefCell aren't).
+//     Rc isn't Send or Sync (because the refcount is shared and unsynchronized).
+
+
+// We see that futures are composed of other futures.
+// Calling poll on the outer future results in calling the inner future's poll function.
+//
+// Executors
+//
+// Asynchronous Rust functions return futures.
+// Futures must have poll called on them to advance their state.
+// Futures are composed of other futures.
+// So, the question is, what calls poll on the very most outer future?
+//
+// Recall from earlier, to run asynchronous functions,
+// they must either be passed to tokio::spawn or be the main function annotated with #[tokio::main].
+// This results in submitting the generated outer future to the Tokio executor.
+// The executor is responsible for calling Future::poll on the outer future,
+// driving the asynchronous computation to completion.
