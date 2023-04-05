@@ -1,0 +1,26 @@
+To implement a synchronous wrapper to asynchronous code, the approaches are:
+
+    1. Create a Runtime and call block_on on the async code.
+
+        使用 current_thread runtime 在当前系统线程上 runtime.block_on() 某个 async block,
+        效果: 当前系统线程等待该 async block 执行完成后再执行下一条语句.
+
+    2. Create a Runtime and spawn things on it.
+
+        使用 multi_thread runtime, 让 runtime 自己创建指定数目的系统线程,
+        然后使用 runtime.spawn() 将 async blocks 分配到这些系统线程上(这些 async blocks 在这些系统线程上立即被调度执行),
+        async blocks 被调度和执行期间当前系统线程的执行不受影响.
+        在当前系统线程上使用 runtime.block_on() 等待这些 async blocks 的 handles 来同时进行 lightweight thread 间等停控制和系统线程间等停控制.
+
+    3. Run the Runtime in a separate thread and send messages to it.
+
+        使用 current_thread runtime, 然后我们手动创建一个系统线程,
+        在该系统线程上 runtime.block_on() async block.
+        在该 async block 中使用 tokio::spawn() 创建更多的 async blocks (这些 async blocks 被创建后立即被调度执行),
+        在该 async block 中调用这些 async blocks 的 handles 的 .await 仅做 lightweight thread 间等停控制.
+
+上面的行文中, async block 是 task, lightweight thread, green thread 的同义词.
+
+//     Because the current_thread runtime does not spawn threads, it only operates when block_on is called.
+// Once block_on returns, all spawned tasks on that runtime will freeze until you call block_on again.
+// Use the multi_threaded runtime if spawned tasks must keep running when not calling block_on.
